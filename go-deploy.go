@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/urfave/cli"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 )
 
 var app = cli.NewApp()
@@ -77,6 +79,22 @@ func main() {
 
 				config, err := readConfig(file)
 				fmt.Println("c", config)
+
+				var out bytes.Buffer
+				var stderr bytes.Buffer
+				cmd := exec.Command(`git`, []string{"status", "--porcelain"}...)
+				cmd.Stdout = &out
+				cmd.Stderr = &stderr
+
+				if cmdErr := cmd.Run(); cmdErr != nil {
+					fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+					os.Exit(1)
+				}
+
+				if out.String() != "" {
+					fmt.Println("Please commit/unstaged your changes to proceed! 💥")
+					os.Exit(1)
+				}
 
 				if err != nil {
 					fmt.Println(err)
