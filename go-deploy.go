@@ -57,7 +57,6 @@ func readConfig(filename string) (Config, error) {
 
 func main() {
 	info()
-
 	flags := []cli.Flag{
 		&cli.StringFlag{
 			Name:  "config, c",
@@ -88,6 +87,8 @@ func main() {
 				}
 
 				checkUpstream(config.Branch)
+
+				rebaseFromRemoteTree(config.Branch)
 
 				if err != nil {
 					fmt.Println(err)
@@ -183,4 +184,19 @@ func checkUpstream(b string) {
 		fmt.Println("\n Please ensure your local branch is synced with your remote branch 💥")
 		os.Exit(1)
 	}
+}
+
+func rebaseFromRemoteTree(b string) {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(`git`, []string{"pull", "--rebase", "origin", b}...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+		os.Exit(1)
+	}
+
+	fmt.Println(out.String())
 }
