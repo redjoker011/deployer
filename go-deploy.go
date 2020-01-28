@@ -90,6 +90,10 @@ func main() {
 
 				rebaseFromRemoteTree(config.Branch)
 
+				installDependencies()
+
+				invokeUnitTest()
+
 				if err != nil {
 					fmt.Println(err)
 				}
@@ -190,6 +194,36 @@ func rebaseFromRemoteTree(b string) {
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(`git`, []string{"pull", "--rebase", "origin", b}...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+		os.Exit(1)
+	}
+
+	fmt.Println(out.String())
+}
+
+func installDependencies() {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(`yarn`, []string{"install"}...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+		os.Exit(1)
+	}
+
+	fmt.Println(out.String())
+}
+
+func invokeUnitTest() {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(`yarn`, []string{"test:unit"}...)
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
