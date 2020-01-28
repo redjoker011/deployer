@@ -94,6 +94,8 @@ func main() {
 
 				invokeUnitTest()
 
+				build("staging")
+
 				if err != nil {
 					fmt.Println(err)
 				}
@@ -224,6 +226,21 @@ func invokeUnitTest() {
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(`yarn`, []string{"test:unit"}...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+		os.Exit(1)
+	}
+
+	fmt.Println(out.String())
+}
+
+func build(m string) {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(`yarn`, []string{"build", "--mode", m}...)
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
