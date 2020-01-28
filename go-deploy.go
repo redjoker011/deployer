@@ -78,23 +78,16 @@ func main() {
 				}
 
 				config, err := readConfig(file)
-				fmt.Println("c", config)
 
-				var out bytes.Buffer
-				var stderr bytes.Buffer
-				cmd := exec.Command(`git`, []string{"status", "--porcelain"}...)
-				cmd.Stdout = &out
-				cmd.Stderr = &stderr
+				branchStatus()
+				prevBranch := currentBranch()
 
-				if cmdErr := cmd.Run(); cmdErr != nil {
-					fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
-					os.Exit(1)
+				if config.Branch != prevBranch {
+					fmt.Printf("Checkout to %s\n", config.Branch)
+					checkOut(config.Branch)
 				}
 
-				if out.String() != "" {
-					fmt.Println("Please commit/unstaged your changes to proceed! 💥")
-					os.Exit(1)
-				}
+				checkUpstream(config.Branch)
 
 				if err != nil {
 					fmt.Println(err)
@@ -129,5 +122,65 @@ func main() {
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func branchStatus() {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(`git`, []string{"status", "--porcelain"}...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+		os.Exit(1)
+	}
+
+	if out.String() != "" {
+		fmt.Println("Please commit/unstaged your changes to proceed! 💥")
+		os.Exit(1)
+	}
+}
+
+func currentBranch() string {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(`git`, []string{"rev-parse", "--abbrev-ref", "HEAD"}...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+		os.Exit(1)
+	}
+
+	return out.String()
+}
+
+func checkOut(b string) {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(`git`, []string{"checkout", b}...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+		os.Exit(1)
+	}
+}
+
+func checkUpstream(b string) {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(`git`, []string{"log", "origin/" + b + "..HEAD"}...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+		fmt.Println("\n Please ensure your local branch is synced with your remote branch 💥")
+		os.Exit(1)
 	}
 }
