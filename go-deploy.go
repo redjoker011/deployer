@@ -32,6 +32,10 @@ type Config struct {
 	DeployTo string `json:"deployTo"`
 }
 
+func (c *Config) sshOpts() string {
+	return fmt.Sprintf("%s@%s", c.User, c.Host)
+}
+
 func readConfig(filename string) (Config, error) {
 	var config Config
 
@@ -61,6 +65,11 @@ func main() {
 		&cli.StringFlag{
 			Name:  "config, c",
 			Usage: "Load configuration from `FILE`",
+		},
+		&cli.StringFlag{
+			Name:  "dist, d",
+			Usage: "Distribution `DIRECTORY`",
+			Value: "/dist",
 		},
 	}
 
@@ -95,6 +104,9 @@ func main() {
 				invokeUnitTest()
 
 				build("staging")
+
+				dist := c.String("dist")
+				deploy(dist, config)
 
 				if err != nil {
 					fmt.Println(err)
@@ -247,6 +259,39 @@ func build(m string) {
 	if cmdErr := cmd.Run(); cmdErr != nil {
 		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
 		os.Exit(1)
+	}
+
+	fmt.Println(out.String())
+}
+
+func deploy(d string, c Config) {
+	dir, err := exec.Command(`date`, []string{"+%s"}...).Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	releasePath := fmt.Sprintf("%s/releases/%s", c.DeployTo, dir)
+	// current := fmt.Sprintf("%s/current", c.DeployTo)
+
+	createReleaseDirectory(c, releasePath)
+	upload(c, releasePath)
+}
+
+func createReleaseDirectory(c Config, path string) {
+	err := exec.Command(`ssh`, []string{c.sshOpts(), "mkdir", "-p", "--", c.DeployTo, path, path}...)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func upload(c Config, path string) {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(`rsync`, []string{"-rv", "dist/", fmt.Sprintf("%s:%s", c.sshOpts(), path)}...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
 	}
 
 	fmt.Println(out.String())
