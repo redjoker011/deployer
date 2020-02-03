@@ -62,6 +62,9 @@ func readConfig(filename string) (Config, error) {
 	return config, nil
 }
 
+var file string
+var mode string
+
 func main() {
 	info()
 	flags := []cli.Flag{
@@ -82,38 +85,29 @@ func main() {
 			Usage: "Deploy on staging server",
 			Flags: flags,
 			Action: func(c *cli.Context) error {
-				file := c.String("config")
+				file = c.String("config")
+				mode = "staging"
 
 				if file == "" {
-					file = "deploy/staging.json"
+					file = fmt.Sprintf("deploy/%s.json", mode)
 				}
 
 				config, err := readConfig(file)
-
-				branchStatus()
-
-				prevBranch := currentBranch()
-				if config.Branch != prevBranch {
-					fmt.Printf("Checkout to %s\n", config.Branch)
-					checkOut(config.Branch)
-				}
-
-				checkUpstream(config.Branch)
-
-				rebaseFromRemoteTree(config.Branch)
-
-				installDependencies()
-
-				invokeUnitTest()
-
-				build("staging")
-
-				dist := c.String("dist")
-				deploy(dist, config)
-
 				if err != nil {
 					fmt.Println(err)
 				}
+
+				branchStatus()
+				prevBranch := currentBranch()
+				checkBranch(config.Branch, prevBranch)
+				checkUpstream(config.Branch)
+				rebaseFromRemoteTree(config.Branch)
+				installDependencies()
+				invokeUnitTest()
+				build(mode)
+				dist := c.String("dist")
+				deploy(dist, config)
+				checkBranch(prevBranch, config.Branch)
 
 				return nil
 			},
@@ -123,18 +117,29 @@ func main() {
 			Usage: "Deploy on production server",
 			Flags: flags,
 			Action: func(c *cli.Context) error {
-				file := c.String("config")
+				file = c.String("config")
+				mode = "production"
 
 				if file == "" {
-					file = "deploy/production.json"
+					file = fmt.Sprintf("deploy/%s.json", mode)
 				}
 
 				config, err := readConfig(file)
-				fmt.Println("c", config)
-
 				if err != nil {
 					fmt.Println(err)
 				}
+
+				branchStatus()
+				prevBranch := currentBranch()
+				checkBranch(config.Branch, prevBranch)
+				checkUpstream(config.Branch)
+				rebaseFromRemoteTree(config.Branch)
+				installDependencies()
+				invokeUnitTest()
+				build(mode)
+				dist := c.String("dist")
+				deploy(dist, config)
+				checkBranch(prevBranch, config.Branch)
 
 				return nil
 			},
@@ -180,6 +185,13 @@ func currentBranch() string {
 	return out.String()
 }
 
+func checkBranch(crnt string, prev string) {
+	if crnt != prev {
+		fmt.Printf("Checkout to %s\n", crnt)
+		checkOut(crnt)
+	}
+}
+
 func checkOut(b string) {
 	cmd := "git checkout"
 	execute(cmd)
@@ -221,6 +233,7 @@ func deploy(d string, c Config) {
 	createReleaseDirectory(c, releasePath)
 	upload(c, releasePath)
 	updateSymbolicLink(c, releasePath, current)
+	done()
 }
 
 func createReleaseDirectory(c Config, path string) {
@@ -305,18 +318,6 @@ func execute(cmdName string) {
 	fmt.Printf("\n%s", outStr)
 }
 
-// func execute(cmdName string) {
-// 	cmdArgs := strings.Fields(cmdName)
-// 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:len(cmdArgs)]...)
-
-// 	var out bytes.Buffer
-// 	var stderr bytes.Buffer
-// 	cmd.Stdout = &out
-// 	cmd.Stderr = &stderr
-
-// 	if cmdErr := cmd.Run(); cmdErr != nil {
-// 		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
-// 	}
-
-// 	fmt.Println(out.String())
-// }
+func done() {
+	fmt.Println("Deployment Done 🎉")
+}
