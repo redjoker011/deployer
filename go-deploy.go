@@ -223,6 +223,7 @@ func deploy(d string, c Config) {
 }
 
 func createReleaseDirectory(c Config, path string) {
+	fmt.Println("\nPreparing release directory....\n")
 	err := exec.Command(`ssh`, []string{c.sshOpts(), "mkdir", "-p", "--", c.DeployTo, path, path}...)
 	if err != nil {
 		log.Fatal(err)
@@ -230,6 +231,7 @@ func createReleaseDirectory(c Config, path string) {
 }
 
 func upload(c Config, path string) {
+	fmt.Printf("\nUploading build from %s...\n", path)
 	cmd := fmt.Sprintf("rsync -rv dist/%s:%s", c.sshOpts(), path)
 	execute(cmd)
 }
