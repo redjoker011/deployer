@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/urfave/cli"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
 var app = cli.NewApp()
@@ -232,18 +234,80 @@ func upload(c Config, path string) {
 	execute(cmd)
 }
 
+func copyAndCapture(w io.Writer, r io.Reader) ([]byte, error) {
+	var out []byte
+	buf := make([]byte, 1024, 1024)
+	for {
+		n, err := r.Read(buf[:])
+		if n > 0 {
+			d := buf[:n]
+			out = append(out, d...)
+			_, err := w.Write(d)
+			if err != nil {
+				return out, err
+			}
+		}
+		if err != nil {
+			// Read returns io.EOF at the end of file, which is not an error for us
+			if err == io.EOF {
+				err = nil
+			}
+			return out, err
+		}
+	}
+}
+
 func execute(cmdName string) {
 	cmdArgs := strings.Fields(cmdName)
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:len(cmdArgs)]...)
 
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	if cmdErr := cmd.Run(); cmdErr != nil {
-		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+	var stdout, stderr []byte
+	var errStdout, errStderr error
+	stdoutIn, _ := cmd.StdoutPipe()
+	stderrIn, _ := cmd.StderrPipe()
+	err := cmd.Start()
+	if err != nil {
+		log.Fatalf("cmd.Start() failed with '%s'\n", err)
 	}
 
-	fmt.Println(out.String())
+	// cmd.Wait() should be called only after we finish reading
+	// from stdoutIn and stderrIn.
+	// wg ensures that we finish
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		stdout, errStdout = copyAndCapture(os.Stdout, stdoutIn)
+		wg.Done()
+	}()
+
+	stderr, errStderr = copyAndCapture(os.Stderr, stderrIn)
+
+	wg.Wait()
+
+	err = cmd.Wait()
+
+	if err != nil {
+		log.Fatalf("cmd.Run() failed with %s\n", err)
+	}
+	if errStdout != nil || errStderr != nil {
+		log.Fatal("Failed to capture stdout or stderr\n")
+	}
+	outStr, _ := string(stdout), string(stderr)
+	fmt.Printf("\n%s", outStr)
 }
+
+// func execute(cmdName string) {
+// 	cmdArgs := strings.Fields(cmdName)
+// 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:len(cmdArgs)]...)
+
+// 	var out bytes.Buffer
+// 	var stderr bytes.Buffer
+// 	cmd.Stdout = &out
+// 	cmd.Stderr = &stderr
+
+// 	if cmdErr := cmd.Run(); cmdErr != nil {
+// 		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
+// 	}
+
+// 	fmt.Println(out.String())
+// }
