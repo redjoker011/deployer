@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 var app = cli.NewApp()
@@ -88,8 +89,8 @@ func main() {
 				config, err := readConfig(file)
 
 				branchStatus()
-				prevBranch := currentBranch()
 
+				prevBranch := currentBranch()
 				if config.Branch != prevBranch {
 					fmt.Printf("Checkout to %s\n", config.Branch)
 					checkOut(config.Branch)
@@ -178,90 +179,33 @@ func currentBranch() string {
 }
 
 func checkOut(b string) {
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command(`git`, []string{"checkout", b}...)
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	if cmdErr := cmd.Run(); cmdErr != nil {
-		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
-		os.Exit(1)
-	}
+	cmd := "git checkout"
+	execute(cmd)
 }
 
 func checkUpstream(b string) {
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command(`git`, []string{"log", "origin/" + b + "..HEAD"}...)
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	if cmdErr := cmd.Run(); cmdErr != nil {
-		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
-		fmt.Println("\n Please ensure your local branch is synced with your remote branch 💥")
-		os.Exit(1)
-	}
+	cmd := fmt.Sprintf("git log origin/%s..HEAD", b)
+	execute(cmd)
 }
 
 func rebaseFromRemoteTree(b string) {
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command(`git`, []string{"pull", "--rebase", "origin", b}...)
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	if cmdErr := cmd.Run(); cmdErr != nil {
-		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
-		os.Exit(1)
-	}
-
-	fmt.Println(out.String())
+	cmd := fmt.Sprintf("git pull --rebase origin %s", b)
+	execute(cmd)
 }
 
 func installDependencies() {
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command(`yarn`, []string{"install"}...)
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	if cmdErr := cmd.Run(); cmdErr != nil {
-		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
-		os.Exit(1)
-	}
-
-	fmt.Println(out.String())
+	cmd := fmt.Sprintf("yarn install")
+	execute(cmd)
 }
 
 func invokeUnitTest() {
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command(`yarn`, []string{"test:unit"}...)
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	if cmdErr := cmd.Run(); cmdErr != nil {
-		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
-		os.Exit(1)
-	}
-
-	fmt.Println(out.String())
+	cmd := "yarn test:unit"
+	execute(cmd)
 }
 
 func build(m string) {
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command(`yarn`, []string{"build", "--mode", m}...)
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	if cmdErr := cmd.Run(); cmdErr != nil {
-		fmt.Println(fmt.Sprint(cmdErr) + ": " + stderr.String())
-		os.Exit(1)
-	}
-
-	fmt.Println(out.String())
+	cmd := fmt.Sprintf("yarn build -m %s", m)
+	execute(cmd)
 }
 
 func deploy(d string, c Config) {
@@ -284,9 +228,16 @@ func createReleaseDirectory(c Config, path string) {
 }
 
 func upload(c Config, path string) {
+	cmd := fmt.Sprintf("rsync -rv dist/%s:%s", c.sshOpts(), path)
+	execute(cmd)
+}
+
+func execute(cmdName string) {
+	cmdArgs := strings.Fields(cmdName)
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:len(cmdArgs)]...)
+
 	var out bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := exec.Command(`rsync`, []string{"-rv", "dist/", fmt.Sprintf("%s:%s", c.sshOpts(), path)}...)
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
