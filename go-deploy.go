@@ -216,10 +216,11 @@ func deploy(d string, c Config) {
 		log.Fatal(err)
 	}
 	releasePath := fmt.Sprintf("%s/releases/%s", c.DeployTo, dir)
-	// current := fmt.Sprintf("%s/current", c.DeployTo)
+	current := fmt.Sprintf("%s/current", c.DeployTo)
 
 	createReleaseDirectory(c, releasePath)
 	upload(c, releasePath)
+	updateSymbolicLink(c, releasePath, current)
 }
 
 func createReleaseDirectory(c Config, path string) {
@@ -233,6 +234,12 @@ func createReleaseDirectory(c Config, path string) {
 func upload(c Config, path string) {
 	fmt.Printf("\nUploading build from %s...\n", path)
 	cmd := fmt.Sprintf("rsync -rv dist/%s:%s", c.sshOpts(), path)
+	execute(cmd)
+}
+
+func updateSymbolicLink(c Config, path string, current string) {
+	fmt.Printf("\nPointing release to %s...\n", path)
+	cmd := fmt.Sprintf("ssh %s rm -rf %s; ln -s %s %s", c.sshOpts(), current, path, current)
 	execute(cmd)
 }
 
