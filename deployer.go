@@ -76,12 +76,14 @@ func execute(cmdName string) {
 	fmt.Printf("\n%s", outStr)
 }
 
-func ensureGitExists() {
-	_, err := exec.LookPath("git")
+func ensureGitExists() (string, error) {
+	path, err := exec.LookPath("git")
 
 	if err != nil {
 		fmt.Println("Make sure git is installed")
 	}
+
+	return path, err
 }
 
 func checkBranch(crnt string, prev string) {
