@@ -197,8 +197,9 @@ func deploy(d string, c Config) {
 var app = cli.NewApp()
 
 func info() {
-	app.Name = "Go Deployer"
-	app.Usage = "Deploy Project into hosting server"
+	app.Name = "Go Deploy"
+	app.Usage = "Deploy distributable build in host server for staging and
+  production"
 	app.Version = "1.0.0"
 	app.Authors = []*cli.Author{
 		&cli.Author{
