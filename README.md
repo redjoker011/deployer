@@ -23,6 +23,7 @@ or copy build from `pkg/go-deploy` into your project `bin` directory
 ## Features
 
 - Customizable deployer configuration file.
+- Ensure All configuration details were supplied in json file.
 - Ensure branch is synced and has no uncommitted changes.
 - Ensure all test pass upon deployment.
 - Has two available deployment environment `staging` and `production`
