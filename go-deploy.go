@@ -247,7 +247,6 @@ func validateConfig(config Config) {
 			fieldName := val.Type().Field(i).Name
 			fmt.Printf("Missing config value for %s\n", fieldName)
 			os.Exit(1)
-			break
 		}
 	}
 }
