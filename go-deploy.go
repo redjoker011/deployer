@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 	"sync"
 )
@@ -198,8 +199,7 @@ var app = cli.NewApp()
 
 func info() {
 	app.Name = "Go Deploy"
-	app.Usage = "Deploy distributable build in host server for staging and
-  production"
+	app.Usage = "Deploy distributable build in host server for staging and production"
 	app.Version = "1.0.0"
 	app.Authors = []*cli.Author{
 		&cli.Author{
@@ -223,12 +223,7 @@ func (c *Config) sshOpts() string {
 func readConfig(filename string) (Config, error) {
 	var config Config
 
-	if len(filename) == 0 {
-		return config, nil
-	}
-
 	file, err := os.Open(filename)
-
 	if err != nil {
 		return config, err
 	}
@@ -241,6 +236,20 @@ func readConfig(filename string) (Config, error) {
 	json.Unmarshal(byteValue, &config)
 
 	return config, nil
+}
+
+func validateConfig(config Config) {
+	val := reflect.ValueOf(config)
+
+	for i := 0; i < val.NumField(); i++ {
+		fieldValue := val.Field(i)
+		if fieldValue.Interface() == "" {
+			fieldName := val.Type().Field(i).Name
+			fmt.Printf("Missing config value for %s\n", fieldName)
+			os.Exit(1)
+			break
+		}
+	}
 }
 
 var file string
@@ -278,6 +287,7 @@ func main() {
 					fmt.Println(err)
 				}
 
+				validateConfig(config)
 				ensureGitExists()
 				branchStatus()
 				prevBranch := currentBranch()
@@ -311,6 +321,7 @@ func main() {
 					fmt.Println(err)
 				}
 
+				validateConfig(config)
 				ensureGitExists()
 				branchStatus()
 				prevBranch := currentBranch()
